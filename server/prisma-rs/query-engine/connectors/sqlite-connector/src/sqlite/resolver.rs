@@ -1,7 +1,8 @@
-use crate::{query_builder::QueryBuilder, DatabaseRead, Sqlite, TransactionalExecutor};
-use connector::{filter::NodeSelector, *};
+use crate::{query_builder::QueryBuilder, Sqlite, Transactional};
+use connector::{error::ConnectorError, filter::NodeSelector, *};
 use itertools::Itertools;
 use prisma_models::*;
+use std::convert::TryFrom;
 
 impl DataResolver for Sqlite {
     fn get_node_by_where(
@@ -12,14 +13,18 @@ impl DataResolver for Sqlite {
         let db_name = &node_selector.field.model().schema().db_name;
         let query = QueryBuilder::get_nodes(node_selector.field.model(), selected_fields, node_selector);
         let field_names = selected_fields.names();
+        let idents = selected_fields.type_identifiers();
 
-        let nodes = self.with_transaction(db_name, |conn| {
-            Self::query(conn, query, |row| Sqlite::read_row(row, selected_fields))
-        })?;
+        let node = self
+            .with_transaction(db_name, |conn| match conn.find(query, idents.as_slice()) {
+                Ok(result) => Ok(Some(result)),
+                Err(_e @ ConnectorError::NodeNotFoundForWhere(_)) => Ok(None),
+                Err(e) => Err(e),
+            })?
+            .map(Node::from)
+            .map(|node| SingleNode { node, field_names });
 
-        let result = nodes.into_iter().next().map(|node| SingleNode { node, field_names });
-
-        Ok(result)
+        Ok(node)
     }
 
     fn get_nodes(
@@ -30,11 +35,14 @@ impl DataResolver for Sqlite {
     ) -> ConnectorResult<ManyNodes> {
         let db_name = &model.schema().db_name;
         let field_names = selected_fields.names();
+        let idents = selected_fields.type_identifiers();
         let query = QueryBuilder::get_nodes(model, selected_fields, query_arguments);
 
-        let nodes = self.with_transaction(db_name, |conn| {
-            Self::query(conn, query, |row| Sqlite::read_row(row, selected_fields))
-        })?;
+        let nodes = self
+            .with_transaction(db_name, |conn| conn.filter(query, idents.as_slice()))?
+            .into_iter()
+            .map(Node::from)
+            .collect();
 
         Ok(ManyNodes { nodes, field_names })
     }
@@ -47,21 +55,33 @@ impl DataResolver for Sqlite {
         selected_fields: &SelectedFields,
     ) -> ConnectorResult<ManyNodes> {
         let db_name = &from_field.model().schema().db_name;
+        let idents = selected_fields.type_identifiers();
         let field_names = selected_fields.names();
         let query = QueryBuilder::get_related_nodes(from_field, from_node_ids, query_arguments, selected_fields);
 
-        let nodes = self.with_transaction(db_name, |conn| {
-            Self::query(conn, query, |row| {
-                let position = field_names.len();
+        let nodes: ConnectorResult<Vec<Node>> = self
+            .with_transaction(db_name, |conn| conn.filter(query, idents.as_slice()))?
+            .into_iter()
+            .map(|mut row| {
+                // Unwrap: Parent id is always in the end.
+                let parent_id = row.values.pop().ok_or()?;
 
-                let mut node = Sqlite::read_row(row, &selected_fields)?;
-                node.add_parent_id(row.get(position - 1));
+                // Unwrap: Relation id is always the second last.
+                // also, we don't need it here and we don't need it in the node.
+                let _ = row.values.pop();
+
+                let mut node = Node::from(row);
+
+                node.add_parent_id(GraphqlId::try_from(parent_id)?);
 
                 Ok(node)
             })
-        })?;
+            .collect();
 
-        Ok(ManyNodes { nodes, field_names })
+        Ok(ManyNodes {
+            nodes: nodes?,
+            field_names,
+        })
     }
 
     fn count_by_model(&self, model: ModelRef, query_arguments: QueryArguments) -> ConnectorResult<usize> {

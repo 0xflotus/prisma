@@ -1,9 +1,9 @@
+use crate::Transaction;
 use connector::{
     filter::{Filter, NodeSelector},
     ConnectorResult,
 };
 use prisma_models::*;
-use rusqlite::Transaction;
 
 /// Functions to update records in the database.
 pub trait DatabaseUpdate {

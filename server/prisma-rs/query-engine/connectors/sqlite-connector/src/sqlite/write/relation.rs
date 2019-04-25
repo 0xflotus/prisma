@@ -1,10 +1,9 @@
 use crate::{
     mutaction::{MutationBuilder, NestedActions},
-    DatabaseRead, DatabaseRelation, DatabaseWrite, Sqlite,
+    DatabaseRelation, DatabaseWrite, Sqlite, Transaction,
 };
 use connector::{filter::NodeSelector, ConnectorResult};
 use prisma_models::{GraphqlId, RelationFieldRef};
-use rusqlite::Transaction;
 use std::sync::Arc;
 
 impl DatabaseRelation for Sqlite {

@@ -1,6 +1,6 @@
 use crate::{
     mutaction::{DeleteActions, MutationBuilder, NestedActions},
-    DatabaseDelete, DatabaseRead, DatabaseWrite, Sqlite,
+    DatabaseDelete, DatabaseWrite, Sqlite, Transaction,
 };
 use connector::{
     error::{ConnectorError, NodeSelectorInfo},
@@ -8,7 +8,6 @@ use connector::{
     ConnectorResult,
 };
 use prisma_models::{GraphqlId, ModelRef, ProjectRef, RelationFieldRef, SingleNode};
-use rusqlite::Transaction;
 use std::sync::Arc;
 
 impl DatabaseDelete for Sqlite {

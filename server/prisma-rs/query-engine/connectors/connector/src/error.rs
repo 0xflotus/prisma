@@ -1,9 +1,13 @@
 use crate::filter::NodeSelector;
 use failure::{Error, Fail};
-use libsqlite3_sys as ffi;
 use prisma_models::prelude::{DomainError, GraphqlId, ModelRef, PrismaValue};
-use rusqlite;
 use std::fmt;
+
+#[cfg(feature = "sqlite")]
+use rusqlite;
+
+#[cfg(feature = "sqlite")]
+use libsqlite3_sys as ffi;
 
 #[derive(Debug)]
 pub struct NodeSelectorInfo {

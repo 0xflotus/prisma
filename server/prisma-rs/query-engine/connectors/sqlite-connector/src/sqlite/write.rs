@@ -15,7 +15,6 @@ use prisma_query::{
     ast::Query,
     visitor::{self, Visitor},
 };
-use rusqlite::Transaction;
 use std::sync::Arc;
 
 impl DatabaseWrite for Sqlite {

@@ -1,10 +1,9 @@
-use crate::mutaction::NestedActions;
+use crate::{mutaction::NestedActions, Transaction};
 use connector::{
     filter::{Filter, NodeSelector},
     ConnectorResult,
 };
 use prisma_models::{GraphqlId, ModelRef, ProjectRef, RelationFieldRef, SingleNode};
-use rusqlite::Transaction;
 
 /// Functions to delete records from the database.
 ///

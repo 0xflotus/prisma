@@ -8,10 +8,10 @@ pub use delete::*;
 pub use relation::*;
 pub use update::*;
 
+use crate::Transaction;
 use connector::{mutaction::NestedMutactions, ConnectorResult};
 use prisma_models::GraphqlId;
 use prisma_query::ast::Query;
-use rusqlite::Transaction;
 
 pub trait DatabaseWrite {
     /// Execute a single statement in the database.

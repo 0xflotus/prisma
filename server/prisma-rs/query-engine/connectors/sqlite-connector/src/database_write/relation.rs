@@ -1,7 +1,6 @@
-use crate::mutaction::NestedActions;
+use crate::{mutaction::NestedActions, Transaction};
 use connector::{filter::NodeSelector, ConnectorResult};
 use prisma_models::{GraphqlId, RelationFieldRef};
-use rusqlite::Transaction;
 
 /// Functions to connect and disconnect records in the database.
 pub trait DatabaseRelation {

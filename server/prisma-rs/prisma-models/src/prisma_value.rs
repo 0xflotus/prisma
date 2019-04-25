@@ -1,11 +1,13 @@
-use prisma_query::ast::*;
-
+use crate::{DomainError, DomainResult};
 use chrono::{DateTime, Utc};
 use rusqlite::types::{FromSql, FromSqlResult, ValueRef};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::fmt;
+use std::{convert::TryFrom, fmt};
 use uuid::Uuid;
+
+#[cfg(feature = "sql")]
+use prisma_query::ast::*;
 
 pub type PrismaListValue = Vec<PrismaValue>;
 
@@ -24,7 +26,7 @@ pub enum PrismaValue {
     DateTime(DateTime<Utc>),
     Enum(String),
     Json(Value),
-    Int(i32),
+    Int(i64),
     Relation(usize),
     Null,
     Uuid(Uuid),
@@ -99,6 +101,12 @@ impl From<bool> for PrismaValue {
 
 impl From<i32> for PrismaValue {
     fn from(s: i32) -> Self {
+        PrismaValue::Int(s as i64)
+    }
+}
+
+impl From<i64> for PrismaValue {
+    fn from(s: i64) -> Self {
         PrismaValue::Int(s)
     }
 }
@@ -130,6 +138,29 @@ impl From<GraphqlId> for PrismaValue {
     }
 }
 
+impl TryFrom<PrismaValue> for GraphqlId {
+    type Error = DomainError;
+
+    fn try_from(value: PrismaValue) -> DomainResult<GraphqlId> {
+        match value {
+            PrismaValue::GraphqlId(id) => Ok(id),
+            _ => Err(DomainError::ConversionFailure("PrismaValue", "GraphqlId")),
+        }
+    }
+}
+
+impl TryFrom<PrismaValue> for i64 {
+    type Error = DomainError;
+
+    fn try_from(value: PrismaValue) -> DomainResult<i64> {
+        match value {
+            PrismaValue::Int(i) => Ok(i),
+            _ => Err(DomainError::ConversionFailure("PrismaValue", "i64")),
+        }
+    }
+}
+
+#[cfg(feature = "sql")]
 impl From<GraphqlId> for DatabaseValue {
     fn from(id: GraphqlId) -> DatabaseValue {
         match id {
@@ -140,12 +171,14 @@ impl From<GraphqlId> for DatabaseValue {
     }
 }
 
+#[cfg(feature = "sql")]
 impl From<&GraphqlId> for DatabaseValue {
     fn from(id: &GraphqlId) -> DatabaseValue {
         id.clone().into()
     }
 }
 
+#[cfg(feature = "sql")]
 impl From<PrismaValue> for DatabaseValue {
     fn from(pv: PrismaValue) -> DatabaseValue {
         match pv {

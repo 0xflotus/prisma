@@ -46,7 +46,7 @@ impl DatabaseMutactionExecutor for Sqlite {
             match mutaction {
                 TopLevelDatabaseMutaction::CreateNode(ref cn) => create(cn),
                 TopLevelDatabaseMutaction::UpdateNode(ref un) => update(un),
-                TopLevelDatabaseMutaction::UpsertNode(ref ups) => match Self::id_for(conn, &ups.where_) {
+                TopLevelDatabaseMutaction::UpsertNode(ref ups) => match conn.find_id(&ups.where_) {
                     Err(_e @ ConnectorError::NodeNotFoundForWhere { .. }) => create(&ups.create),
                     Err(e) => return Err(e),
                     Ok(_) => update(&ups.update),
